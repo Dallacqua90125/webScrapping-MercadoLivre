@@ -29,10 +29,11 @@ const fs = require('fs');
                 }
     
                 return {
-                    produto,
+                    nome,
                     preco,
                     avaliacao,
-                    link
+                    link,
+                    produto
                 };
             }).filter(item => item !== null);
         }, produto);
