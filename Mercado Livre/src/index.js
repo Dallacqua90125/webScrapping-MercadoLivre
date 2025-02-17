@@ -1,9 +1,14 @@
 const puppeteer = require('puppeteer');
-const { produtos } = require('./produtos');
 const fs = require('fs');
 
 (async () => {
-    const browser = await puppeteer.launch({ headless: false });
+    const produto = process.argv[2];
+    if (!produto) {
+        console.error('Erro: Nenhum produto informado.');
+        process.exit(1);
+    }
+
+    const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
     
     async function searchProduct(produto) {
@@ -23,17 +28,15 @@ const fs = require('fs');
                 const preco = card.querySelector('span.andes-money-amount.andes-money-amount--cents-superscript')?.textContent?.trim();
                 const avaliacao = card.querySelector('span.poly-reviews__rating')?.textContent?.trim();
                 const link = card.querySelector('a.poly-component__title')?.getAttribute('href');
-    
-                if (!avaliacao) {
-                    return null;
-                }
+                const image = card.querySelector('img[src]')?.getAttribute('src')?.trim();
     
                 return {
                     nome,
                     preco,
-                    avaliacao,
+                    avaliacao: avaliacao || 'Sem avaliação', // Se não houver avaliação, coloca um valor padrão
                     link,
-                    produto
+                    produto,
+                    image
                 };
             }).filter(item => item !== null);
         }, produto);
@@ -41,17 +44,27 @@ const fs = require('fs');
         return cardData;
     }
 
-    let allItens = []; 
+    // Função para rolar a página
+    async function scrollPage() {
+        await page.evaluate(async () => {
+            const distance = 1000; // Distância do scroll em pixels
+            const delay = 1000; // Intervalo entre os scrolls em milissegundos
+            const totalHeight = document.body.scrollHeight;
 
-    for (const produto of produtos) {
-        console.log(`Procurando por: ${produto}`);
-        await searchProduct(produto);  
-        const itens = await getItens(produto);  
-        allItens = allItens.concat(itens);  
+            while (document.documentElement.scrollTop + window.innerHeight < totalHeight) {
+                window.scrollBy(0, distance);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        });
     }
 
-    console.log('Itens encontrados:', allItens);
-    fs.writeFileSync('itens.json', JSON.stringify(allItens, null, 2));
+    console.log(`Procurando por: ${produto}`);
+    await searchProduct(produto);
+    await scrollPage();  
+    const itens = await getItens(produto);
+
+    console.log('Itens encontrados:', itens);
+    fs.writeFileSync('itens.json', JSON.stringify(itens, null, 2));
 
     await browser.close();
 })();
