@@ -20,7 +20,7 @@ async function getWrapperItens(produto, page) {
             };
         }).filter(item => item !== null);
     }, produto);
-
+    
     return cardData;
 }
 
